@@ -78,7 +78,7 @@ class FollowViewSet(viewsets.ModelViewSet):
     """ViewSet для подписок на авторов."""
     serializer_class = FollowSerializer
     filter_backends = (filters.SearchFilter,)
-    search_fields = ('following',)
+    search_fields = ('following__username',)
     permission_classes = [
         permissions.IsAuthenticated
         & IsOwnerOrReadOnly
@@ -91,9 +91,24 @@ class FollowViewSet(viewsets.ModelViewSet):
     def create(self, request):
         user = request.user
         following_name = request.data.get('following')
-        print(f'user_name = {user}')
-        print(f'following_name = {following_name}')
-        if user == following_name:
+        if (
+            not following_name
+            or following_name is None
+        ):
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        following = get_object_or_404(
+            User,
+            username=following_name
+        )
+
+        if (
+            user == following
+            or Follow.objects.filter(
+                user=user,
+                following=following
+            ).exists()
+        ):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
         serializer = self.get_serializer(data=request.data)
