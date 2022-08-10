@@ -3,7 +3,7 @@ from rest_framework import filters, generics, pagination, permissions, viewsets
 from rest_framework.response import Response
 from rest_framework import status
 
-from posts.models import Comment, Follow, Group, Post, User
+from posts.models import Group, Post, User
 
 from .permissions import IsOwnerOrReadOnly
 from .serializers import (
@@ -41,7 +41,7 @@ class CommentList(generics.ListCreateAPIView):
         post = Post.objects.get(
             id=self.kwargs['post_id']
         )
-        comments = Comment.objects.filter(post=post)
+        comments = post.comments
         return comments
 
     def perform_create(self, serializer):
@@ -67,8 +67,7 @@ class CommentDetail(generics.RetrieveUpdateDestroyAPIView):
         post = Post.objects.get(
             id=self.kwargs['post_id']
         )
-        comment = Comment.objects.filter(
-            post=post,
+        comment = post.comments.filter(
             id=self.kwargs['comment_id']
         )
         return comment
@@ -86,28 +85,13 @@ class FollowViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        return Follow.objects.filter(user=user)
+        return user.follower
 
     def create(self, request):
-        user = request.user
         following_name = request.data.get('following')
         if (
             not following_name
             or following_name is None
-        ):
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-
-        following = get_object_or_404(
-            User,
-            username=following_name
-        )
-
-        if (
-            user == following
-            or Follow.objects.filter(
-                user=user,
-                following=following
-            ).exists()
         ):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -128,5 +112,7 @@ class FollowViewSet(viewsets.ModelViewSet):
         )
         serializer.save(
             following=following,
-            user=self.request.user
+            user=self.request.user  # Без этого возникает ошибка:
+            # django.db.utils.IntegrityError:
+            # NOT NULL constraint failed: posts_follow.user_id
         )
