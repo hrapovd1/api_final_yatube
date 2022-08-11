@@ -1,16 +1,9 @@
-from django.shortcuts import get_object_or_404
+from posts.models import Group, Post
 from rest_framework import filters, generics, pagination, permissions, viewsets
-from rest_framework.response import Response
-from rest_framework import status
-
-from posts.models import Group, Post, User
 
 from .permissions import IsOwnerOrReadOnly
-from .serializers import (
-    CommentSerializer,
-    FollowSerializer,
-    GroupSerializer,
-    PostSerializer)
+from .serializers import (CommentSerializer, FollowSerializer, GroupSerializer,
+                          PostSerializer)
 
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -87,31 +80,8 @@ class FollowViewSet(viewsets.ModelViewSet):
         user = self.request.user
         return user.follower
 
-    def create(self, request):
-        following_name = request.data.get('following')
-        if (
-            not following_name
-            or following_name is None
-        ):
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            serializer.data,
-            status=status.HTTP_201_CREATED,
-            headers=headers)
-
     def perform_create(self, serializer):
-        following_name = self.request.data.get('following')
-        following = get_object_or_404(
-            User,
-            username=following_name
-        )
         serializer.save(
-            following=following,
             user=self.request.user  # Без этого возникает ошибка:
             # django.db.utils.IntegrityError:
             # NOT NULL constraint failed: posts_follow.user_id
